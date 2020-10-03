@@ -35,16 +35,18 @@ class DiagnosticProvider {
     }
 
     clear() {
-        this._diagnostics = null;
-        if (null != vscode.window.activeTextEditor) {
-            this._collection.set(vscode.window.activeTextEditor.document.uri, null);
+        if (this._diagnostics) {
+            for (var uri of this._diagnostics.keys()) {
+                this._collection.set(vscode.Uri.file(uri), null);
+            }
+            this._diagnostics = null;
         }
     }
 
     update(buildProcessInfo) {
-        if (null != vscode.window.activeTextEditor) {
-            this._diagnostics = this.createDiagnosticsInfo(buildProcessInfo, vscode.window.activeTextEditor.document);
-            this._collection.set(vscode.window.activeTextEditor.document.uri, this._diagnostics);
+        this._diagnostics = this.createDiagnosticsInfo(buildProcessInfo);
+        for (let [uri, list] of this._diagnostics) {
+            this._collection.set(vscode.Uri.file(uri), list);
         }
     }
 
@@ -114,7 +116,24 @@ class DiagnosticProvider {
         return err;
     }
 
-    createDiagnosticsInfo(buildProcessInfo, document) {
+    addAsDiagnostic(line, diagnostics) {
+        let err = this.parseError(line);
+        if (err) {
+            let uri = Utils.getAbsoluteFilename(err.filename);
+            let diagnostic = new vscode.Diagnostic(
+                new vscode.Range(err.line, 0, err.line, 0),
+                err.text,
+                err.isWarning ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error
+            );
+
+            if (!diagnostics.has(uri)) {
+                diagnostics.set(uri, [])
+            }
+            diagnostics.get(uri).push(diagnostic);
+        }
+    }
+
+    createDiagnosticsInfo(buildProcessInfo) {
 
         /*
         if (0 == buildProcessInfo.exitCode) {
@@ -122,40 +141,14 @@ class DiagnosticProvider {
         }
         */
 
-        let set = [];
+        let diagnostics = new Map();
 
         for (let i=0, line; (line=buildProcessInfo.stdout[i]); i++) {
-            let err = this.parseError(line);
-            if (null == err) continue;
-            set.push(err);
+            this.addAsDiagnostic(line, diagnostics);
         }
 
         for (let i=0, line; (line=buildProcessInfo.stderr[i]); i++) {
-            let err = this.parseError(line);
-            if (null == err) continue;
-            set.push(err);
-        }
-
-        if (set.length < 1) {
-            return null; // no errors
-        }
-
-        let diagnostics = [];
-
-        for (var i=0, err; (err=set[i]); i++) {
-
-            let line = document.lineAt(err.line);
-
-            let colStart = line.firstNonWhitespaceCharacterIndex;
-            let colEnd = colStart + line.text.substr(colStart).trim().length;
-            let range = new vscode.Range(err.line, colStart, err.line, colEnd);
-
-            diagnostics.push(new vscode.Diagnostic(
-                range,
-                err.text,
-                err.isWarning ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error
-            ));
-
+            this.addAsDiagnostic(line, diagnostics);
         }
 
         return diagnostics;
