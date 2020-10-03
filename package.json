@@ -121,6 +121,11 @@
 					"default": true,
 					"description": "Enable automatic background build after source changes"
 				},
+				"c64.buildMainFile": {
+					"type": "string",
+					"default": "",
+					"description": "When set, always builds this file instead of the currently open file"
+				},
 				"c64.assemblerPath": {
 					"type": "string",
 					"default": "acme",

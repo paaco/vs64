@@ -36,7 +36,7 @@ class Extension {
 
     /**
      * @param {vscode.ExtensionContext} context
-     */    
+     */
     constructor(context) {
         this._context = context;
         this._output = null;
@@ -267,21 +267,22 @@ class Extension {
             s.debuggerRunning = true;
         }
 
-        s.filename = Utils.getCurrentAsmFile();
-        if (null == s.filename) {
+        let currentFilename = Utils.getCurrentAsmFile();
+        if (null == currentFilename) {
             s.noSource = true;
             s.filename = "";
             s.prgfilename = "";
             s.reportFilename = "";
             s.labelsFilename = "";
         } else {
+            s.filename = settings.buildMainFile ? Utils.getAbsoluteFilename(settings.buildMainFile) : currentFilename;
             s.prgfilename = Utils.getOutputFilename(s.filename, "prg");
             s.reportFilename = Utils.getOutputFilename(s.filename, "report");
             s.labelsFilename = Utils.getOutputFilename(s.filename, "labels");
-    
-            if (Utils.compareFileTime(s.filename, s.prgfilename) >= 0 &&
-                Utils.compareFileTime(s.filename, s.reportFilename) >= 0 &&
-                Utils.compareFileTime(s.filename, s.labelsFilename) >= 0) {
+
+            if (Utils.compareFileTime(currentFilename, s.prgfilename) >= 0 &&
+                Utils.compareFileTime(currentFilename, s.reportFilename) >= 0 &&
+                Utils.compareFileTime(currentFilename, s.labelsFilename) >= 0) {
                 s.noBuildNeeded = true;
             }
         }
@@ -386,7 +387,7 @@ class Extension {
         var thisInstance = this;
 
         state.assemblerProcess = this.exec(
-            executable, args, 
+            executable, args,
             function(procInfo) { // success function
                 thisInstance.updateDiagnostics(procInfo);
                 if (null != successFunction) {
@@ -529,7 +530,7 @@ class Extension {
                 }
             }
         });
-        
+
         proc.stderr.on('data', (data) => {
             var lines = (data+"").split('\n');
             for (var i=0, line; (line=lines[i]); i++) {
@@ -551,7 +552,7 @@ class Extension {
                 vscode.window.showErrorMessage("failed to start '" + executable + "'");
             }
         });
-        
+
         proc.on('exit', (code) => {
             procInfo.exited = true;
             procInfo.exitCode = code;
@@ -592,7 +593,7 @@ class Extension {
                 return " [ERROR: file not found]";
             }
             return " [" + err.message + "]";
-        }        
+        }
 
         try {
             fs.accessSync(path, fs.constants.X_OK);
@@ -638,6 +639,8 @@ class Extension {
             console.log("[C64] background build enabled");
         }
 
+        settings.buildMainFile = workspaceConfig.get("c64.buildMainFile")||"";
+
         settings.assemblerPath = Utils.findExecutable(workspaceConfig.get("c64.assemblerPath")||"");
         settings.assemblerArgs = workspaceConfig.get("c64.assemblerArgs")||"";
         settings.assemblerSearchPath = workspaceConfig.get("c64.assemblerSearchPath");
@@ -682,7 +685,7 @@ var extensionInstance = null;
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-    
+
     return new Promise(function(resolve /*, reject*/) {
         if (null == extensionInstance) {
             extensionInstance = new Extension(context);
