@@ -394,6 +394,7 @@ class DebugSession extends debug.LoggingDebugSession {
             }
             var sourceBreakpoints = args.breakpoints;
 
+            this.clearBreakpoints();
             for (var i=0, sourceBreakpoint; (sourceBreakpoint=sourceBreakpoints[i]); i++) {
 
                 var breakpoint = this.addBreakpoint(source, sourceBreakpoint.line, sourceBreakpoint.logMessage);
